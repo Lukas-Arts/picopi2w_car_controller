@@ -1,6 +1,10 @@
+import os
+import json
 import socket
+from HttpRequest import HttpRequest
 class WebServer:
     def __init__(self, ip,port,controller):
+        self.running = False
         self.ip = ip
         self.port = port
         self.controller = controller
@@ -9,100 +13,71 @@ class WebServer:
         self.conntection = self.open_socket(self.ip,self.port)
         print("Socket opened...")
         self.serve(self.conntection)
+    def set_running(self,_running):
+        self.running = _running
 
     def open_socket(self,ip,port):
         # Open a socket
         address = (ip, port)
-        connection = socket.socket()
-        connection.bind(address)
-        connection.listen(1)
-        return connection
+        next_socket = socket.socket()
+        # reuse old socket if available
+        next_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) 
+        # bind socket
+        next_socket.bind(address)
+        next_socket.listen(1)
+        return next_socket
 
-    def serve(self,connection):
+    def serve(self,next_socket):
+        self.running = True
         #listen for new requests
-        while True:
-            client = connection.accept()[0]
-            request = client.recv(1024)
-            request = str(request)
-            try:
-                request = request.split()[1]
-            except IndexError:
-                pass
-            if request == '/forward?':
-                self.controller.forward()
-            elif request =='/backward?':
-                self.controller.backward()
-            elif request == '/left?':
-                self.controller.left()
-            elif request == '/center?':
-                self.controller.center()
-            elif request == '/right?':
-                self.controller.right()
-            html = self.webpage("")
-            client.send(html)
-            client.close()
-
-    def webpage(self,state):
-        #Template HTML
-        body = f"""
-                <div class="container">
-                    <div>
-                    </div>
-                    <div>
-                        <form action="./forward">
-                        <input type="submit" value="&#11205;" />
-                        </form>
-                    </div>
-                    <div>
-                    </div>
-                    <div>
-                        <form action="./left">
-                        <input type="submit" value="&#11207;" />
-                        </form>
-                    </div>
-                    <div>
-                        <form action="./center">
-                        <input type="submit" value="&#9208;" />
-                        </form>
-                    </div>
-                    <div>
-                        <form action="./right">
-                        <input type="submit" value="&#11208;" />
-                        </form>
-                    </div>
-                    <div>
-                    </div>
-                    <div>
-                        <form action="./backward">
-                        <input type="submit" value="&#11206;" />
-                        </form>
-                    </div>
-                    <div>
-                    </div>
-                </div>
-                <p>State is {state}</p>
-                """
-        html = """
-                <!DOCTYPE html>
-                <html>
-                <head>
-                <style>
-                .container {
-                  display: grid;
-                  grid-template-columns: auto auto auto;
-                }
-                .container > div {
-                  background-color: #f1f1f1;
-                  font-size: 30px;
-                  text-align: center;
-                }
-                </style>
-                <meta charset="UTF-8">
-                </head>
-                <body>
-                """+body+"""
-                </body>
-                </html>
-                """
-        #print(html)
-        return str(html)
+        try:
+            while self.running:
+                #accept connection
+                connection = next_socket.accept()[0]
+                try:
+                    #parse to HttpRequest
+                    request = HttpRequest(connection.recv(1024).decode('UTF-8'))
+                    
+                    #read content from file, if available
+                    urlWithoutFirstSlash = request.url.replace('/','',1)
+                    if request.url == '/':
+                        urlWithoutFirstSlash = 'index.html'
+                    responseContent = ""
+                    for fileName in os.listdir('www'):
+                        print(fileName)
+                        if fileName == urlWithoutFirstSlash:
+                            file = open('www/'+fileName)
+                            responseContent = file.read()
+                            file.close()
+                            if fileName == 'index.html':
+                                #update and return html
+                                distance = self.controller.get_distance()
+                                responseContent = responseContent.format("adsf",str(distance))
+                            
+                    # or use controller to handle requests
+                    if request.url == '/':
+                        if request.content == 'action=forward':
+                            self.controller.forward()
+                        elif request.content == 'action=backward':
+                            self.controller.backward()
+                        elif request.content == 'action=left':
+                            self.controller.left()
+                        elif request.content == 'action=center':
+                            self.controller.center()
+                        elif request.content == 'action=right':
+                            self.controller.right()
+                        elif responseContent == '':
+                            responseContent = 'HTTP/1.1 404 Not Found'
+                    elif request.url == '/joyControl':
+                        jsonContent = json.loads(request.content)
+                        self.controller.joystick(jsonContent['x'],jsonContent['y'],jsonContent['speed'],jsonContent['angle'])
+                        responseContent = 'HTTP/1.1 200 OK'
+                    elif responseContent == '':
+                        responseContent = 'HTTP/1.1 404 Not Found'
+                    
+                    #print(responseContent)
+                    connection.send(responseContent)
+                finally:
+                    connection.close()
+        finally:
+            next_socket.close()

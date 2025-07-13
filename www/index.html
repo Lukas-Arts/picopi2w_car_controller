@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+        .container {{
+          display: grid;
+          grid-template-columns: auto auto auto;
+        }}
+        .container > div {{
+          background-color: #f1f1f1;
+          font-size: 30px;
+          text-align: center;
+        }}
+        </style>
+        <meta charset="UTF-8">
+    </head>
+    <body>
+        <div class="container">
+            <div>
+            </div>
+            <div>
+                <form action="./" method="post">
+                    <input type="submit" value="&#11205;" />
+                    <input type="hidden" name="action" value="forward" />
+                </form>
+            </div>
+            <div>
+            </div>
+            <div>
+                <form action="./" method="post">
+                    <input type="submit" value="&#11207;" />
+                    <input type="hidden" name="action" value="left" />
+                </form>
+            </div>
+            <div>
+                <form action="./" method="post">
+                    <input type="submit" value="&#9208;" />
+                    <input type="hidden" name="action" value="center" />
+                </form>
+            </div>
+            <div>
+                <form action="./" method="post">
+                    <input type="submit" value="&#11208;" />
+                    <input type="hidden" name="action" value="right" />
+                </form>
+            </div>
+            <div>
+            </div>
+            <div>
+                <form action="./" method="post">
+                    <input type="submit" value="&#11206;" />
+                    <input type="hidden" name="action" value="backward" />
+                </form>
+            </div>
+            <div>
+            </div>
+        </div>
+        <p>Distance is {1}</p>
+        <p>State is {0}</p>
+    </body>
+</html>

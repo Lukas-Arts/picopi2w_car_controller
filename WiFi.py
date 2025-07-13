@@ -10,10 +10,17 @@ class WiFi:
         self.ssid = ssid
         self.password = pw
         self.wlan = network.WLAN(network.STA_IF)
+        if self.wlan.active():
+            print('wifi was active before..')
+            self.wlan.active(False)
+            time.sleep(1)
         self.wlan.active(True)
     def is_connected(self):
         return self.wlan.status() == 3
-            
+    def shutdown(self):
+        print('shutdown wifi..')
+        self.wlan.disconnect()
+        self.status_led.value(False)
     def connect(self):    
         self.wlan.connect(self.ssid, self.password)
 
