@@ -1,23 +1,47 @@
+import asyncio
 import os
-import json
+import re
 import socket
 from HttpRequest import HttpRequest
-class WebServer:
-    def __init__(self, ip,port,controller):
+from RequestHandler import RequestHandler
+from FileRequestHandler import FileRequestHandler
+
+
+class WebServer(RequestHandler):
+    def __init__(self, ip,port):
         self.running = False
         self.ip = ip
         self.port = port
-        self.controller = controller
-        print("Starting WebServer on "+ip+":"+str(port)+"...")
+        self.request_handler : ARRAY[RequestHandler] = []
+        self.apis : ARRAY[API] = []
         
-        self.conntection = self.open_socket(self.ip,self.port)
-        print("Socket opened...")
-        self.serve(self.conntection)
-    def set_running(self,_running):
+    def set_running(self,_running: bool):
         self.running = _running
+        
+    def add_api(self,api:API):
+        print("Adding RequestHandlers for API '"+api.api_handler.api_name+"'...")
+        for handler in api.api_handler.handlers:
+            handler.api_context = api
+            self.add_request_handler(handler)
+    def add_www_file_request_handlers(self):
+        #add FileRequestHandler for each file in /www/*
+        print("Adding FileRequestHandlers for '/www/*'...")
+        for fileName in os.listdir('www'):
+            self.add_request_handler(FileRequestHandler('/'+str(fileName),'GET'))
+            if fileName == 'index.html':
+                self.add_request_handler(FileRequestHandler('/','GET'))
+    
+    def add_request_handler(self,requestHandler: RequestHandler):
+        for rh in self.request_handler:
+            if rh.type == requestHandler.type and rh.url == requestHandler.url:
+                print('RequestHandler already defined:',requestHandler.to_string())
+                return
+        print('Adding RequestHandler:',requestHandler.to_string())
+        self.request_handler += [requestHandler]
 
-    def open_socket(self,ip,port):
+    def open_socket(self,ip: str,port) -> socket:
         # Open a socket
+        print("Starting WebServer on "+self.ip+":"+str(self.port)+"...")
         address = (ip, port)
         next_socket = socket.socket()
         # reuse old socket if available
@@ -25,59 +49,48 @@ class WebServer:
         # bind socket
         next_socket.bind(address)
         next_socket.listen(1)
+        print("Socket opened...")
         return next_socket
 
-    def serve(self,next_socket):
-        self.running = True
+    async def serve(self):
         #listen for new requests
+        #accept connection
+        connection = self.web_socket.accept()[0]
         try:
-            while self.running:
-                #accept connection
-                connection = next_socket.accept()[0]
-                try:
-                    #parse to HttpRequest
-                    request = HttpRequest(connection.recv(1024).decode('UTF-8'))
-                    
-                    #read content from file, if available
-                    urlWithoutFirstSlash = request.url.replace('/','',1)
-                    if request.url == '/':
-                        urlWithoutFirstSlash = 'index.html'
-                    responseContent = ""
-                    for fileName in os.listdir('www'):
-                        print(fileName)
-                        if fileName == urlWithoutFirstSlash:
-                            file = open('www/'+fileName)
-                            responseContent = file.read()
-                            file.close()
-                            if fileName == 'index.html':
-                                #update and return html
-                                distance = self.controller.get_distance()
-                                responseContent = responseContent.format("adsf",str(distance))
-                            
-                    # or use controller to handle requests
-                    if request.url == '/':
-                        if request.content == 'action=forward':
-                            self.controller.forward()
-                        elif request.content == 'action=backward':
-                            self.controller.backward()
-                        elif request.content == 'action=left':
-                            self.controller.left()
-                        elif request.content == 'action=center':
-                            self.controller.center()
-                        elif request.content == 'action=right':
-                            self.controller.right()
-                        elif responseContent == '':
-                            responseContent = 'HTTP/1.1 404 Not Found'
-                    elif request.url == '/joyControl':
-                        jsonContent = json.loads(request.content)
-                        self.controller.joystick(jsonContent['x'],jsonContent['y'],jsonContent['speed'],jsonContent['angle'])
-                        responseContent = 'HTTP/1.1 200 OK'
-                    elif responseContent == '':
-                        responseContent = 'HTTP/1.1 404 Not Found'
-                    
-                    #print(responseContent)
-                    connection.send(responseContent)
-                finally:
-                    connection.close()
+            #parse to HttpRequest
+            request = HttpRequest(connection.recv(1024).decode('UTF-8'))
+            #print(request.to_string())
+            responseContent = self.handle_request(request)
+            
+            #print(responseContent)
+            connection.send(responseContent)
         finally:
-            next_socket.close()
+            connection.close()
+    async def request_callback(self,sr: asyncio.stream.StreamReader, sw: asyncio.StreamWriter):
+        try:
+            #parse to HttpRequest
+            data = await sr.read(1024)
+            request = HttpRequest(data.decode('UTF-8'))
+            print("request:",request.to_string())
+            responseContent = await self.handle_request(request)
+            #print("writing response:",responseContent)
+            sw.write(responseContent)
+            await asyncio.wait_for(sw.drain(),10)
+            #print("handled callback",responseContent)
+        except Exception as e:
+            print(e)
+        finally:
+            sw.close()
+            await sw.wait_closed()
+    async def handle_request(self,httpRequest: HttpRequest) -> str:
+        
+        for rh in self.request_handler:
+            if rh.type == httpRequest.type and re.match("^"+rh.url+"$",httpRequest.url):
+                #print(str(rh.api_context))
+                if rh.api_context == None:
+                    return await rh.handle_request(httpRequest)
+                else:
+                    return await rh.handle_request(rh.api_context,httpRequest)
+        
+        responseContent = 'HTTP/1.1 404 Not Found'
+        return responseContent
