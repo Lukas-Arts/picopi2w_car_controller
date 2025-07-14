@@ -34,13 +34,15 @@ class TestApi(API):
             self.controller.center()
         elif httpRequest.content == 'action=right':
             self.controller.right()
+        elif httpRequest.content == 'action=toggle_state':
+            self.controller.toggle_state()
         file = open('www/index.html')
         responseContent = file.read()
         #responseContent = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: ["+str(len(responseContent))+"]\r\n\r\n"+responseContent
         file.close()
         #update and return html 
         distance = await self.controller.get_distance()
-        responseContent = responseContent.format("adsf",str(distance))
+        responseContent = responseContent.format(self.controller.state,str(distance))
         return responseContent
     
     # use custom instead of default FileRequestHandlers for index to write distance to html
@@ -54,5 +56,5 @@ class TestApi(API):
         file.close()
         #update and return html
         distance = await self.controller.get_distance()
-        responseContent = responseContent.format("adsf",str(distance))
+        responseContent = responseContent.format(self.controller.state,str(distance))
         return responseContent

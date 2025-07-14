@@ -27,6 +27,11 @@ class Controller:
     def right(self):
         self.servo1.set_deg(110)
         pass
+    def toggle_state(self):
+        if self.state == 'manual':
+            self.state = 'auto'
+        elif self.state == 'auto':
+            self.state = 'manual'
     async def auto(self):
         await self.get_distance()
         if self.state == 'auto':
