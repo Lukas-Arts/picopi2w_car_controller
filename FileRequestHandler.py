@@ -10,12 +10,7 @@ class FileRequestHandler(RequestHandler):
         u = self.url.replace('/','',1)
         if u == "":
             u = "index.html"
-        file = await open('www/'+u)
-        responseContent = """
-            HTTP/1.1 200 OK
-            Content-Type: text/html; charset=utf-8
-            
-            """
-        responseContent += await file.read()
-        await file.close()
+        file = open('www/'+u)
+        responseContent = file.read()
+        file.close()
         return responseContent

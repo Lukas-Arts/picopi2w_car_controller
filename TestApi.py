@@ -1,13 +1,14 @@
 import json
-
 from API import API
 from API import API_Handler
 from Controller import Controller
 
+
 class TestApi(API):
-    api = API_Handler("TestApi")
+    api = API.api
+    api.set_api_name("TestApi")
     def __init__(self,_controller: Controller):
-        self.api_handler = self.api
+        super().__init__("TestApi")
         self.controller = _controller
         pass
     

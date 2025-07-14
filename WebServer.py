@@ -19,9 +19,8 @@ class WebServer(RequestHandler):
         self.running = _running
         
     def add_api(self,api:API):
-        print("Adding RequestHandlers for API '"+api.api_handler.api_name+"'...")
-        for handler in api.api_handler.handlers:
-            handler.api_context = api
+        print("Adding RequestHandlers for API '"+api.api_name+"'...")
+        for handler in api.get_handlers():
             self.add_request_handler(handler)
     def add_www_file_request_handlers(self):
         #add FileRequestHandler for each file in /www/*
@@ -77,8 +76,6 @@ class WebServer(RequestHandler):
             sw.write(responseContent)
             await asyncio.wait_for(sw.drain(),10)
             #print("handled callback",responseContent)
-        except Exception as e:
-            print(e)
         finally:
             sw.close()
             await sw.wait_closed()
@@ -86,7 +83,7 @@ class WebServer(RequestHandler):
         
         for rh in self.request_handler:
             if rh.type == httpRequest.type and re.match("^"+rh.url+"$",httpRequest.url):
-                #print(str(rh.api_context))
+                print(str(rh.to_string()))
                 if rh.api_context == None:
                     return await rh.handle_request(httpRequest)
                 else:
