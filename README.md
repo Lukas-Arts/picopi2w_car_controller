@@ -43,29 +43,24 @@ Edit the Control.auto()-function to use the sensors for autonoumous-drive-mode
 
 #### Webserver 
 
-You can either add an RequestHandler directly with WebServer.add_request_handler() or define a
-API by inheriting from API and setting a static API_Handler in the init.
+You can either add an RequestHandler directly with WebServer.add_request_handler() or define a API by inheriting from API and using the @Api and @ApiPath-decorators to annotate your API-class and functions. The annotated functions should take an HttpRequest as an argument and return a string value that represents the http response.
 
 ```
 from API import API
-from API import API_Handler
+from API import ApiPath
+from API import Api
+
+@Api("TestApi2")
 class TestApi2(API):
-    api = API_Handler("TestApi2")
-    def __init__(self):
-        self.api_handler = self.api
-        pass
-```
-
-Then use the @api.apiPath(path_patter,request_type='GET')-decorator to annotate your API-Path-Function
-
-```
-    @api.apiPath("/test2","GET")
-    def test_path2(self,httpRequest: HttpRequest):
+    @ApiPath("/te.*","GET")
+    async def test_path2(self,httpRequest: HttpRequest) -> str:
         print("Handling Request:",httpRequest.to_string())
         print("hello")
+        return "hello test2"
 ```
 
-and finally add your API to the WebServer in the Main
+
+finally add your API to the WebServer in the Main
 
 ```
         test = TestApi2()
