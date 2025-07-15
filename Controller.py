@@ -6,6 +6,7 @@ class Controller:
         self.servo1.set_deg(90)
         self.servo2 = Servo(7,deg_range = 360)
         self.servo2.set_servo_speed(0)
+        self.min_distance = 10.0 # in cm
         self.distanceSensor = UltrasonicDistanceSensor(17,16)
         self.state='manual'
         pass
@@ -32,6 +33,7 @@ class Controller:
             self.state = 'auto'
         elif self.state == 'auto':
             self.state = 'manual'
+    # called asyncronously
     async def auto(self):
         await self.get_distance()
         if self.state == 'auto':
@@ -41,17 +43,16 @@ class Controller:
     async def get_distance(self):
         return await self.distanceSensor.get_distance(20)
     
-    # x/y - coordinates, +-
+    # x/y - coordinates, +-200
     # speed - distance from center, 0-100
     # angle - 0-360, 90 front, 0 right, 270 bottom,  180 left
     #
     async def joystick(self,x,y,speed,angle):
         distance = await self.distanceSensor.get_distance(20)
-        print(distance)
-        if distance > 10.0:
-            print(str(speed)+" "+str(angle))
+        # only drive forward, when distance < min_distance
+        if distance > self.min_distance or y < 0:
             speed2 = y/(-4) # speed based on y
             self.servo2.set_servo_speed(speed2)
-            self.servo1.set_deg(90+(x/10))
+            self.servo1.set_deg(90+(x/10)) # map to 90+-20
         else:
             self.servo2.set_servo_speed(0)

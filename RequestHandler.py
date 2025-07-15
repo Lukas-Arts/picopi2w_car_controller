@@ -11,4 +11,4 @@ class RequestHandler:
         print("Handling Request:",httpRequest.to_string())
         pass
     def to_string(self) -> str:
-        return self.api_name+" ["+self.type+"] "+self.url
+        return "["+self.type+"] "+self.url+" -> ("+self.api_name+")"
